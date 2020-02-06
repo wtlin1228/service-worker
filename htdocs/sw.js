@@ -1,5 +1,5 @@
 // Service worker code goes in here!
-var cacheVersion = "v1";
+var cacheVersion = "v5";
 var cacheAssets = [
   "/css/global.css",
   "/js/debounce.js",
@@ -29,7 +29,21 @@ self.addEventListener("install", function(event) {
 
 self.addEventListener("activate", function(event) {
   // Allows the service worker to begin working immediately.
-  return self.clients.claim();
+
+  var cacheWhiteList = ["v5"];
+
+  event.waitUntil(
+    caches.keys().then(function(keyList) {
+      return Promise.all([
+        keyList.map(function(key) {
+          if (cacheWhiteList.indexOf(key) === -1) {
+            return caches.delete(key);
+          }
+        }),
+        self.clients.claim()
+      ]);
+    })
+  );
 });
 
 self.addEventListener("fetch", function(event) {
@@ -46,9 +60,9 @@ self.addEventListener("fetch", function(event) {
       event.respondWith(
         fetch(event.request)
           .then(function(fetchedResponse) {
-            console.log(event.request.url);
+            var copyFetchedResponse = fetchedResponse.clone();
             caches.open(cacheVersion).then(function(cache) {
-              cache.put(event.request, fetchedResponse.clone());
+              cache.put(event.request, copyFetchedResponse);
             });
 
             return fetchedResponse;
@@ -65,9 +79,9 @@ self.addEventListener("fetch", function(event) {
           return (
             cachedResponse ||
             fetch(event.request).then(function(fetchedResponse) {
-              console.log(event.request.url);
+              var copyFetchedResponse = fetchedResponse.clone();
               caches.open(cacheVersion).then(function(cache) {
-                cache.put(event.request, fetchedResponse.clone());
+                cache.put(event.request, copyFetchedResponse);
               });
 
               return fetchedResponse;
